@@ -1,0 +1,322 @@
+Hands-on Ansible
+
+https://app.vagrantup.com/centos/boxes/7
+https://www.digitalocean.com/community/tutorials/how-to-use-ansible-to-install-and-set-up-apache-on-ubuntu-18-04-pt
+https://docs.ansible.com/ansible/latest/user_guide/playbooks_handlers.html
+
+-- Vagrant destroy
+vagrant destroy
+
+-- Vagrant create
+vagrant up
+
+-- VM list 
+vboxmanage list runningvms
+
+-- accessing vm
+vagrant ssh acs
+
+-- inventory file
+192.168.33.20
+192.168.33.30
+
+-- first access in the acs
+sudo su
+apt-get update -y
+apt-get install ansible -y
+
+-- create inventory file
+192.168.33.20
+192.168.33.30
+
+-- Command to inventory file
+ssh vagrant@192.168.33.20
+ssh vagrant@192.168.33.30
+
+apt-get install sshpass
+
+ansible 192.168.33.20 -i inventory -u vagrant -m ping -k
+ansible all -i inventory -u vagrant -m ping -k
+
+ansible all -i inventory -u vagrant -a "sudo apt-get update -y" -k
+ansible all -i inventory -u vagrant -a "sudo apt-get install ansible -y" -k
+ansible all -i inventory -u vagrant -a "sudo apt-get install python-pip -y" -k
+
+ansible all -i inventory -u vagrant  -a "/bin/echo hello" -k
+
+-- inventory file
+web1 ansible_ssh_host=192.168.33.20
+db1 ansible_ssh_host=192.168.33.30
+
+
+[webservers]
+web1
+
+[dbservers]
+db1
+
+[datacenters:children]
+webservers
+dbservers
+
+[datacenters:vars]
+ansible_ssh_user=vagrant
+ansible_ssh_pass=vagrant
+
+-- Command to inventory file
+ansible web1 -i inventory  -m ping
+ansible webservers -i inventory  -m ping
+ansible dbservers -i inventory  -m ping
+ansible datacenters -i inventory  -m ping
+
+-- Basic Directory Structure
+
+|- group_vars
+| -- all
+| -- db
+|- host_vars
+| -- web1
+|- inventory_prod
+|- inventory_test
+
+-- Multi-Environement Directorty Structure
+
+|- production
+| -- group_vars
+|  --- all
+|  --- db
+| -- host_vars
+|  --- web1
+| -- inventory_prod
+|- test
+| -- group_vars
+|  --- all
+|  --- db
+| -- host_vars
+|  --- web1
+| -- inventory_test
+
+
+-- create users
+ansible webservers -i inventory_prod -m user -a "name={{username}} password=12345" --sudo
+
+
+-- list folder 
+ansible webservers -i inventory -u vagrant  -a "ls /home" -k
+
+-- Environement Variable Overrides
+$ANSIBLE_<configsetting>
+Overrise specific settings by prefixing ANSIBLE_ to the name
+
+export ANSIBLE_FORKS=10
+Greate way to override specific settings on-the fly!
+
+-- Default: forks
+- Default set to 5
+total number of parallel per`tions Ansible executes
+- Production Recommendation: 20
+Start at 20, and go up or down depending on performance
+
+-- Default: host_key_checking
+- Default set to true
+For Production environement, do not change
+
+- Development Environement: set to False
+Due tot he dynamoc environement of Dev, keeps it easy
+
+-- Default: log_path
+- Default set to Null
+Write information on Ansible executions
+
+- Set path to log file
+make sure all users oof Ansible has permissions to Write
+
+-- To avoid ssh error
+- create ansible.cfg file
+[defaults]
+host_key_checking=False
+
+-- Command
+ansible web1 -i inventory_prod -m ping
+
+-- To avoid ssh error with environement variable
+export ANSIBLE_HOST_KEY_CHECKING=True
+echo $ANSIBLE_HOST_KEY_CHECKING
+
+-- Setting python in inventory file
+192.168.33.50 ansible_python_interpreter=/usr/bin/python2.7
+
+- There are 3 types of modules
+-- Core
+-- Extras
+-- Deprecated
+
+- Command modules doc
+ansible-doc -l -- list modules
+ansible-doc <name> -- select a moodule
+ansible-doc -s <name> -- examples
+
+-- Inventory file 
+web1 ansible_ssh_host=192.168.33.20 ansible_ssh_user=vagrant ansible_ssh_pass=vagrant username=ansible_user
+db1 ansible_ssh_host=192.168.33.30
+
+[webservers]
+web1
+
+[dbservers]
+db1
+
+[datacenters:children]
+webservers
+dbservers
+
+[datacenters:vars]
+ansible_ssh_user=vagrant
+ansible_ssh_pass=vagrant
+
+-- check the package is installed in the host 
+ansible webservers -i inventory -m apt -a "name=httpd state=present" --sudo
+ansible webservers -i inventory -a "apt-get install apache2 -y" --sudo
+
+-- start the package remotely
+ansible-doc service
+ansible webservers -i inventory -m apt -a "name=apache2 state=present" --sudo
+
+ansible webservers -i inventory -m service -a "name=apache2 enabled=yes state=started" --sudo 
+
+ansible dbservers -i inventory -m apt -a "name=mysql-server state=present" --sudo
+ansible dbservers -i inventory -m service -a "name=mysql state=started" --sudo 
+
+-- check setup
+ansible web1 -i inventory -m setup
+ansible web1 -i inventory -m setup -a "filter=ansible_eth*"
+ansible web1 -i inventory -m setup -a "filter=ansible_mounts"
+
+ansible all -i inventory -m setup --tree ./setup
+
+-- Execution of playbooks
+ansible-playbook playbook.yml
+
+-- ansible.cfg
+[defaults]
+hostfile = inventory
+
+-- Inventory file 
+web1 ansible_ssh_host=192.168.33.20 ansible_ssh_user=vagrant ansible_ssh_pass=vagrant username=ansible_user
+db1 ansible_ssh_host=192.168.33.30
+
+[webservers]
+web1
+
+[dbservers]
+db1
+
+[datacenters:children]
+webservers
+dbservers
+
+[datacenters:vars]
+ansible_ssh_user=vagrant
+ansible_ssh_pass=vagrant
+
+-- web_db.yaml file
+---
+- hosts: webservers
+  sudo: yes
+
+  tasks:
+  - name: Ensure that Apache is installed
+    apt: name=apache2 state=present
+
+  - name: Start Apache Services
+    service: name=apache2 enabled=yes state=started
+
+- hosts: dbservers
+  sudo: yes
+
+  tasks: 
+  - name: Ensure MySQL is installed
+    apt: name=mysql-server state=present
+
+  - name: Start MySQL
+    service: name=mysql state=started
+
+- hosts: webservers:dbservers
+  sudo: yes
+
+  tasks:
+  - name: Stop IPTables NOW!!!
+    service: name=iptables state=stopped 
+
+-- execute playbook
+ansible-playbook web_db.yaml
+
+-- retry
+ansible-playbook web_db.yaml --limit @/root/web_db.yaml.retry
+
+--  web_db.yaml 
+---
+- hosts: webservers
+  sudo: yes
+  vars:
+    http_port: 80
+    http_host: localhost
+    doc_dir: /ansible/
+    doc_root: /var/www/html/
+    max-clients: 5
+    http_conf: localhoost.conf
+
+  vars_prompt:
+    - name: username
+      prompt: What is your name? 
+
+  tasks:
+  - name: Ensure that Apache is installed
+    apt: name=apache2 state=present
+    when : ansible_os_family == "Debian"
+
+  - name: Start Apache Services
+    service: name=apache2 enabled=yes state=started
+
+  - name: Deploy configuration file
+    template: src=templates/httpd.j2 dest=/etc/apache2/sites-available/{{ http_conf }}
+    notify:
+      - Restart Apache
+
+  - name: Copy Site Files
+    template: src=templates/index.j2 dest={{ doc_root }}/index.html
+    
+  handlers:
+    - name: Restart Apache
+      service: name=apache2 state=restarted
+
+  
+- hosts: dbservers
+  sudo: yes
+
+  tasks: 
+  - name: Ensure MySQL is installed
+    apt: name=mysql-server state=present
+    when : ansible_os_family == "Debian"
+
+  - name: Start MySQL
+    service: name=mysql state=started
+
+-- templates/httpd.j2 file
+<VirtualHost *:{{ http_port }}>
+   ServerAdmin webmaster@localhost
+   ServerName {{ http_host }}
+</VirtualHost>
+
+-- templates/index.j2 file
+<html>
+<head><title>Congradulations!</title></head>
+<body>
+You are {{ username }}
+</body>
+</html>
+
+-- Command
+ansible-playbook web_db.yaml
+
+>>> https://galaxy.ansible.com/

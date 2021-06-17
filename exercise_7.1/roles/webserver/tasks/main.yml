@@ -1,0 +1,15 @@
+---
+- name: Ensure that Apache is installed
+  apt: name=apache2 state=present
+
+- name: Start Apache Services
+  service: name=apache2 enabled=yes state=started
+
+
+- name: Deploy configuration file
+  template: src=httpd.j2 dest=/etc/apache2/sites-available/{{ http_conf }}
+  notify:
+    - Restart Apache
+
+- name: Copy Site Files
+  template: src=index.j2 dest={{ doc_root }}/index.html

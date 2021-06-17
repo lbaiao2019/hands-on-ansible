@@ -1,0 +1,7 @@
+---
+http_port: 80
+http_host: localhost
+doc_dir: /ansible/
+doc_root: /var/www/html/
+max-clients: 5
+http_conf: localhost.conf

@@ -1,0 +1,14 @@
+---
+- name: Install SNMP
+  apt: name=snmp state=present
+
+- name: Install snmp-mibs-downloader
+  apt: name=snmp-mibs-downloader state=present
+
+
+- name: Deploy SNMP
+  template: src=snmpd.conf.j2 dest=/etc/snmp/snmp.conf
+  notify: SNMP Restart
+
+- name: Make sure service is running
+  service: name=snmpd state=started
