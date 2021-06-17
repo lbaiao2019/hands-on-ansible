@@ -320,3 +320,6 @@ You are {{ username }}
 ansible-playbook web_db.yaml
 
 >>> https://galaxy.ansible.com/
+sudo ansible-galaxy install geerlinguy.get
+ls /etc/ansble/rles/geerlingguy.git
+
